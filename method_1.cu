@@ -236,12 +236,10 @@ public:
                 if (formula[idx-1] < 2){
                     temp_op_new = formula[idx-1];
                     if (num_per_grp != 1){
-                        // cout << "A1-s";
                         cudaMalloc((void**)&new_temp_1, 8*count*rows);
                         copy_from_operands<<<num_block, 256>>>(new_temp_1, OPERAND, d_valid,
                                                                rows, count);
                         cudaDeviceSynchronize();
-                        // cout << "A1-e";
                     }
                 } else {
                     temp_op_new = temp_op;
@@ -268,42 +266,32 @@ public:
                     cudaMalloc((void**)&new_temp_0, 8*count*rows);
                     if (!temp_op_new){
                         if (num_per_grp != 1){
-                            // cout << "A1-S" << endl;
                             update_last_weight<<<num_block, 256>>>(new_temp_0, temp_0,
                                                                    new_temp_1, rows,
                                                                    count, true);
                             cudaDeviceSynchronize();
-                            // cout << "A1-E" << endl;
                         } else {
-                            // cout << "A1-S2" << endl;
                             update_last_weight_through_operands<<<num_block, 256>>>(
                                 new_temp_0, temp_0, OPERAND, d_valid, rows, count, true
                             );
                             cudaError_t status = cudaDeviceSynchronize();
-                            // cout << "A1-E2" << cudaGetErrorString(status) << endl;
                         }
                     } else {
                         if (num_per_grp != 1){
-                            // cout << "A1-S3" << endl;
                             update_last_weight<<<num_block, 256>>>(new_temp_0, temp_0,
                                                                    new_temp_1, rows,
                                                                    count, false);
                             cudaDeviceSynchronize();
-                            // cout << "A1-S3" << endl;
                         } else {
-                            // cout << "A1-S4" << endl;
                             update_last_weight_through_operands<<<num_block, 256>>>(
                                 new_temp_0, temp_0, OPERAND, d_valid, rows, count, false
                             );
                             cudaDeviceSynchronize();
-                            // cout << "A1-S4" << endl;
                         }
                     }
                 } else temp_0_change = false;
 
-                // cout << "???" << endl;
                 if (idx+1 != fml_shape){
-                    // cout << "ABC" << endl;
                     if (chk){
                         if (add_sub){
                             new_idx = idx + 2;
@@ -348,19 +336,15 @@ public:
                         }
                     }
                 } else {
-                    // cout << "XYZ" << endl;
                     cudaError_t status = cudaMemcpy(
                         temp_weight_storage+count_temp_storage*rows,
                         new_temp_0, 8*count*rows, cudaMemcpyDeviceToDevice
                     );
-                    // cout << cudaGetErrorString(status) << endl;
                     for (i=0; i<count; i++){
-                        // cout << count_temp_storage + i << endl;
                         memcpy(temp_formula_storage[count_temp_storage+i],
                                new_formula[i], fml_shape);
                     }
                     count_temp_storage += count;
-                    // cout << "Ahihi" << endl;
                     if (count_temp_storage >= __STORAGE_SIZE__){
                         replace_nan_and_inf<<<count_temp_storage*rows/256 + 1, 256>>>(
                             temp_weight_storage, rows, count_temp_storage
@@ -370,7 +354,6 @@ public:
                         count_temp_storage = 0;
                     }
                     if (status){
-                        // cout << cudaGetErrorString(status) << endl;
                         throw runtime_error("Cuda bad status");
                     }
                 }
@@ -469,7 +452,6 @@ public:
             cudaMemcpy(temp_0, h_temp_0, 8*rows, cudaMemcpyHostToDevice);
             cudaMemcpy(temp_1, h_temp_0, 8*rows, cudaMemcpyHostToDevice);
             fill_formula(formula, f_struct, 0, temp_0, 0, temp_1, 0, false, false);
-            // cout << count_temp_storage << endl;
             replace_nan_and_inf<<<count_temp_storage*rows/256 + 1, 256>>>(
                 temp_weight_storage, rows, count_temp_storage
             );
