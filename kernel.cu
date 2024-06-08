@@ -2,8 +2,8 @@
 #include <cuda_runtime.h>
 
 
-const double __NEGATIVE_INFINITY__ = -1.7976931348623157e+308;
-const double __POSITIVE_INFINITY__ = +1.7976931348623157e+308;
+__device__ const double __NEGATIVE_INFINITY__ = -1.7976931348623157e+308;
+__device__ const double __POSITIVE_INFINITY__ = +1.7976931348623157e+308;
 
 
 __global__ void cuda_array_assign(
