@@ -2,6 +2,10 @@
 #include <cuda_runtime.h>
 
 
+const double __NEGATIVE_INFINITY__ = -1.7976931348623157e+308;
+const double __POSITIVE_INFINITY__ = +1.7976931348623157e+308;
+
+
 __global__ void cuda_array_assign(
     double* array,
     int length,
@@ -93,7 +97,7 @@ __global__ void replace_nan_and_inf(
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index < numOpr*length){
         if (isnan(array[index]) || isinf(array[index]))
-            array[index] = -1.7976931348623157e+308;
+            array[index] = __NEGATIVE_INFINITY__;
     }
 }
 
@@ -104,7 +108,7 @@ __device__ double max_of_array(
     int right,
     double supremum
 ) {
-    double max_ = -1.7976931348623157e+308;
+    double max_ = __NEGATIVE_INFINITY__;
     for (int i=left; i<right; i++){
         if (array[i] < supremum && array[i] > max_) max_ = array[i];
     }
@@ -120,7 +124,7 @@ __device__ void top_n_of_array(
     int start,
     int n
 ) {
-    double supremum = 1.7976931348623157e+308;
+    double supremum = __POSITIVE_INFINITY__;
     for (int i=0; i<n; i++){
         supremum = max_of_array(array, left, right, supremum);
         result[start+i] = supremum;
