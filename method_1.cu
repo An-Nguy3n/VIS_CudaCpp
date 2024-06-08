@@ -18,9 +18,11 @@ public:
     int *INDEX, *SYMBOL, *BOOL_ARG, index_length, rows, cols;
     double *PROFIT, *OPERAND, *temp_weight_storage;
     int groups, fml_shape, num_per_grp, count_temp_storage = 0;
-    int **current;
+    int64_t **current;
+    string FOLDER_SAVE;
     uint8_t **temp_formula_storage;
     ofstream *array_outFile;
+    ofstream outFile;
 
     // Nguong 2
     double *d_threshold;
@@ -37,33 +39,32 @@ public:
         int rows,
         int cols,
         double *PROFIT,
-        double *OPERAND
+        double *OPERAND,
+        string FOLDER_SAVE
     ) {
         cudaMalloc((void**)&this->INDEX, 4*index_length);
-        cudaMemcpy(this->INDEX, INDEX, 4*index_length, cudaMemcpyHostToDevice);
-
         cudaMalloc((void**)&this->SYMBOL, 4*rows);
-        cudaMemcpy(this->SYMBOL, SYMBOL, 4*rows, cudaMemcpyHostToDevice);
-
         cudaMalloc((void**)&this->BOOL_ARG, 4*rows);
-        cudaMemcpy(this->BOOL_ARG, BOOL_ARG, 4*rows, cudaMemcpyHostToDevice);
-
         cudaMalloc((void**)&this->PROFIT, 8*rows);
-        cudaMemcpy(this->PROFIT, PROFIT, 8*rows, cudaMemcpyHostToDevice);
-
         cudaMalloc((void**)&this->OPERAND, 8*rows*cols);
+        cudaMemcpy(this->INDEX, INDEX, 4*index_length, cudaMemcpyHostToDevice);
+        cudaMemcpy(this->SYMBOL, SYMBOL, 4*rows, cudaMemcpyHostToDevice);
+        cudaMemcpy(this->BOOL_ARG, BOOL_ARG, 4*rows, cudaMemcpyHostToDevice);
+        cudaMemcpy(this->PROFIT, PROFIT, 8*rows, cudaMemcpyHostToDevice);
         cudaMemcpy(this->OPERAND, OPERAND, 8*rows*cols, cudaMemcpyHostToDevice);
 
         this->index_length = index_length;
         this->rows = rows;
         this->cols = cols;
+        this->FOLDER_SAVE = FOLDER_SAVE;
 
         //
         array_outFile = new ofstream[__NUM_CYCLE__];
+        outFile.open(FOLDER_SAVE+"checkpoint.txt");
 
         //
-        current = new int*[3];
-        for (int i=0; i<3; i++) current[i] = new int[1];
+        current = new int64_t*[3];
+        for (int i=0; i<3; i++) current[i] = new int64_t[1];
 
         //
         cudaMalloc((void**)&temp_weight_storage, 8*(__STORAGE_SIZE__+cols)*rows);
@@ -76,7 +77,7 @@ public:
         cudaMalloc((void**)&d_final, 32*(__STORAGE_SIZE__+cols)*__NUM_CYCLE__);
         cuda_array_assign<<<2*(__STORAGE_SIZE__+cols)*num_threshold*__NUM_CYCLE__/256 + 1, 256>>>(
             d_result, 2*(__STORAGE_SIZE__+cols)*num_threshold*__NUM_CYCLE__, 0
-        );
+        ); cudaDeviceSynchronize();
         h_final = new double[4*(__STORAGE_SIZE__+cols)*__NUM_CYCLE__];
     }
 
@@ -88,6 +89,7 @@ public:
         cudaFree(OPERAND);
 
         delete[] array_outFile;
+        outFile.close();
         for (int i=0; i<3; i++) delete[] current[i];
         delete[] current;
 
@@ -112,7 +114,6 @@ public:
         bool add_sub,
         bool mul_div
     ) {
-        // cout << mode << endl;
         if (!mode) /*Sinh dấu cộng trừ*/ {
             int gr_idx = 2147483647, start = 0, i, k;
             bool new_add_sub;
@@ -274,7 +275,7 @@ public:
                             update_last_weight_through_operands<<<num_block, 256>>>(
                                 new_temp_0, temp_0, OPERAND, d_valid, rows, count, true
                             );
-                            cudaError_t status = cudaDeviceSynchronize();
+                            cudaDeviceSynchronize();
                         }
                     } else {
                         if (num_per_grp != 1){
@@ -340,11 +341,16 @@ public:
                         temp_weight_storage+count_temp_storage*rows,
                         new_temp_0, 8*count*rows, cudaMemcpyDeviceToDevice
                     );
+                    if (status){
+                        throw runtime_error("Cuda bad status");
+                    }
                     for (i=0; i<count; i++){
                         memcpy(temp_formula_storage[count_temp_storage+i],
                                new_formula[i], fml_shape);
                     }
                     count_temp_storage += count;
+                    for (i=0; i<fml_shape; i++) current[0][i] = formula[i];
+                    current[0][fml_shape-1] = cols;
                     if (count_temp_storage >= __STORAGE_SIZE__){
                         replace_nan_and_inf<<<count_temp_storage*rows/256 + 1, 256>>>(
                             temp_weight_storage, rows, count_temp_storage
@@ -352,9 +358,6 @@ public:
                         cudaDeviceSynchronize();
                         compute_result();
                         count_temp_storage = 0;
-                    }
-                    if (status){
-                        throw runtime_error("Cuda bad status");
                     }
                 }
 
@@ -395,19 +398,29 @@ public:
         //
         cudaMemcpy(h_final, d_final, 32*count_temp_storage*__NUM_CYCLE__, cudaMemcpyDeviceToHost);
 
-        int i, j, k;
+        int i, j;
+        int64_t k;
         for (i=0; i<count_temp_storage; i++){
             for (j=0; j<__NUM_CYCLE__; j++){
                 if (h_final[i*__NUM_CYCLE__*4 + j*4 + 3] >= 1.37){
-                    array_outFile[j] << current[2][0]+i << " ";
-                    write_formula(temp_formula_storage[i], fml_shape/2, array_outFile[j]);
-                    for (k=0; k<4; k++)
-                        array_outFile[j] << h_final[i*__NUM_CYCLE__*4 + j*4 + k] << " ";
-                    array_outFile[j] << endl;
+                    // array_outFile[j] << current[2][0]+i << " ";
+                    // write_formula(temp_formula_storage[i], fml_shape/2, array_outFile[j]);
+                    // for (k=0; k<4; k++)
+                    //     array_outFile[j] << h_final[i*__NUM_CYCLE__*4 + j*4 + k] << " ";
+                    // array_outFile[j] << endl;
+                    k = current[2][0]+i;
+                    array_outFile[j].write(reinterpret_cast<char*>(&k), 8);
+                    array_outFile[j].write(reinterpret_cast<char*>(temp_formula_storage[i]), fml_shape);
+                    array_outFile[j].write(reinterpret_cast<char*>(h_final + i*__NUM_CYCLE__*4 + j*4), 32);
                 }
             }
         }
         current[2][0] += count_temp_storage;
+        outFile.close();
+        outFile.open(FOLDER_SAVE+"checkpoint.txt");
+        outFile << current[1][0] << " " << current[2][0] << " ";
+        for (i=0; i<fml_shape; i++) outFile << current[0][i] << " ";
+        outFile << endl;
     }
 
     // Test
@@ -423,13 +436,15 @@ public:
         double *h_temp_0 = new double[rows];
         for (i=0; i<rows; i++) h_temp_0[i] = 0;
         delete[] current[0];
-        current[0] = new int[2*num_opr_per_fml];
+        current[0] = new int64_t[2*num_opr_per_fml];
         current[1][0] = -1;
         current[2][0] = 0;
 
-        for (i=0; i<__NUM_CYCLE__; i++)
-            array_outFile[i].open(to_string(i)+".txt");
-
+        for (i=0; i<__NUM_CYCLE__; i++){
+            array_outFile[i].open(to_string(i)+"_"+to_string(num_opr_per_fml)+".bin", ios::binary | ios::out | ios::app);
+            if (!array_outFile[i].is_open()) throw runtime_error("Khong the mo file");
+        }
+        
         for (int num_per_grp=1; num_per_grp<=num_opr_per_fml; num_per_grp++){
             if (num_opr_per_fml%num_per_grp) continue;
             this->num_per_grp = num_per_grp;

@@ -6,6 +6,7 @@ using namespace std;
 string DATA_PATH = "HOSE_Field_2007_2023_lastest.xlsx";
 string INTEREST = "1.06";
 string VALUEARG_THRESHOLD = "500000000.0";
+string FOLDER_SAVE = "Data/";
 
 
 template <typename T>
@@ -51,7 +52,7 @@ int main(){
     print_array(OPERAND+rows*(cols-2), rows, 500);
 
     //
-    Generator vis(INDEX, SYMBOL, BOOL_ARG, index_length, rows, cols, PROFIT, OPERAND);
+    Generator vis(INDEX, SYMBOL, BOOL_ARG, index_length, rows, cols, PROFIT, OPERAND, FOLDER_SAVE);
     
     chrono::high_resolution_clock::time_point start = chrono::high_resolution_clock::now();
     vis.test_run(4);

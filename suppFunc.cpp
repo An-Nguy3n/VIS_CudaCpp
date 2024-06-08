@@ -2,7 +2,7 @@
 #include <cstdint>
 
 
-bool are_arrays_equal(uint8_t *arr1, int *arr2, int s, int e){
+bool are_arrays_equal(uint8_t *arr1, int64_t *arr2, int s, int e){
     for (int i=s; i<e; i++){
         if (arr1[i] != arr2[i]) return false;
     }
