@@ -20,7 +20,6 @@ public:
     int groups, fml_shape, num_per_grp, count_temp_storage = 0;
     int **current;
     uint8_t **temp_formula_storage;
-    ofstream outFile;
     ofstream *array_outFile;
 
     // Nguong 2
@@ -60,7 +59,6 @@ public:
         this->cols = cols;
 
         //
-        outFile.open("Generator_temp_file.txt");
         array_outFile = new ofstream[__NUM_CYCLE__];
 
         //
@@ -89,7 +87,6 @@ public:
         cudaFree(PROFIT);
         cudaFree(OPERAND);
 
-        outFile.close();
         delete[] array_outFile;
         for (int i=0; i<3; i++) delete[] current[i];
         delete[] current;
@@ -419,6 +416,7 @@ public:
         for (i=0; i<count_temp_storage; i++){
             for (j=0; j<__NUM_CYCLE__; j++){
                 if (h_final[i*__NUM_CYCLE__*4 + j*4 + 3] >= 1.37){
+                    array_outFile[j] << current[2][0]+i << " ";
                     write_formula(temp_formula_storage[i], fml_shape/2, array_outFile[j]);
                     for (k=0; k<4; k++)
                         array_outFile[j] << h_final[i*__NUM_CYCLE__*4 + j*4 + k] << " ";
@@ -426,6 +424,7 @@ public:
                 }
             }
         }
+        current[2][0] += count_temp_storage;
     }
 
     // Test
